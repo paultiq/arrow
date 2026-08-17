@@ -217,6 +217,4 @@ popd
 if command -v sccache &> /dev/null; then
   echo "=== sccache stats after the build ==="
   sccache --show-stats
-  # Flush the server so SCCACHE_ERROR_LOG is complete before the container exits
-  sccache --stop-server > /dev/null 2>&1 || :
 fi
