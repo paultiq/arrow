@@ -105,6 +105,7 @@ jobs:
           fi
           archery docker run \
             -e SETUPTOOLS_SCM_PRETEND_VERSION={{ arrow.no_rc_version }} \
+            -e CMAKE_VERBOSE_MAKEFILE={{ '${{ vars.CMAKE_VERBOSE_MAKEFILE || \'OFF\' }}' }} \
             python-wheel-{{ linux_wheel_kind }}-{{ linux_wheel_version }}
 
       - name: Upload sccache log
