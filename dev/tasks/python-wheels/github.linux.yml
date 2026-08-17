@@ -45,7 +45,7 @@ jobs:
       PYTHON: "{{ python_version }}"
       PYTHON_ABI_TAG: "{{ python_abi_tag }}"
       PYTHON_IMAGE_TAG: "{{ python_version }}"
-      AWS_ROLE_ARN: {{ '${{ secrets.AWS_ROLE_ARN }}' }}
+      SCCACHE_OIDC_ROLE: {{ '${{ secrets.AWS_ROLE_ARN }}' }}
 
     steps:
       {{ macros.github_checkout_arrow()|indent }}
@@ -54,7 +54,7 @@ jobs:
       {{ macros.github_login_dockerhub()|indent }}
 
       - name: Configure AWS credentials for sccache
-        if: env.AWS_ROLE_ARN != ''
+        if: env.SCCACHE_OIDC_ROLE != ''
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: {{ '${{ secrets.AWS_ROLE_ARN }}' }}
