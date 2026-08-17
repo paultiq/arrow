@@ -42,8 +42,8 @@ env:
 
 {%- macro github_login_dockerhub() -%}
   - name: Login to Dockerhub
-    # Skip on forks without the secrets configured
-    if: {{ "${{ secrets.DOCKERHUB_USER != '' }}" }}
+    # Tolerate missing credentials on forks
+    continue-on-error: true
     uses: docker/login-action@v2
     with:
       username: {{ '${{ secrets.DOCKERHUB_USER }}' }}
