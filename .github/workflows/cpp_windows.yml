@@ -122,6 +122,9 @@ jobs:
         with:
           path: ${{ steps.ccache-info.outputs.cache-dir }}
           key: cpp-ccache-windows-${{ inputs.arch }}
+      - name: Zero ccache stats
+        shell: bash
+        run: ccache --zero-stats
       - name: Build
         shell: cmd
         env:
