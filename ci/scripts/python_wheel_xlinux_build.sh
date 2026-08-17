@@ -206,3 +206,10 @@ rm -rf dist/temp-fix-wheel
 echo "=== (${PYTHON_VERSION}) Tag the wheel with ${LINUX_WHEEL_KIND}${LINUX_WHEEL_VERSION} ==="
 auditwheel repair dist/pyarrow-*.whl -w repaired_wheels
 popd
+
+if command -v sccache &> /dev/null; then
+  echo "=== sccache stats after the build ==="
+  sccache --show-stats
+  # Flush the server so SCCACHE_ERROR_LOG is complete before the container exits
+  sccache --stop-server > /dev/null 2>&1 || :
+fi

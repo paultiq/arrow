@@ -42,6 +42,8 @@ env:
 
 {%- macro github_login_dockerhub() -%}
   - name: Login to Dockerhub
+    # Skip on forks without the secrets configured
+    if: {{ "${{ secrets.DOCKERHUB_USER != '' }}" }}
     uses: docker/login-action@v2
     with:
       username: {{ '${{ secrets.DOCKERHUB_USER }}' }}
@@ -287,14 +289,17 @@ env:
   {% endif %}
 {%- endmacro -%}
 
-{% macro github_set_sccache_envvars(sccache_key_prefix = "sccache") %}
+{% macro github_set_sccache_envvars(sccache_key_prefix = "sccache",
+                                    sccache_error_log = "") %}
   {% set sccache_vars =  {
             "AWS_ACCESS_KEY_ID": '${{ env.AWS_ACCESS_KEY_ID }}',
             "AWS_SECRET_ACCESS_KEY": '${{ env.AWS_SECRET_ACCESS_KEY }}',
             "AWS_SESSION_TOKEN": '${{ env.AWS_SESSION_TOKEN }}',
             "SCCACHE_BUCKET": '${{ vars.SCCACHE_BUCKET }}',
             "SCCACHE_REGION": '${{ vars.SCCACHE_REGION }}',
-            "SCCACHE_S3_KEY_PREFIX": sccache_key_prefix
+            "SCCACHE_S3_KEY_PREFIX": sccache_key_prefix,
+            "SCCACHE_LOG": '${{ vars.SCCACHE_LOG }}',
+            "SCCACHE_ERROR_LOG": sccache_error_log
           }
  %}
   {% for key, value in sccache_vars.items() %}

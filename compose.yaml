@@ -78,6 +78,8 @@ x-sccache: &sccache
   SCCACHE_BUCKET:
   SCCACHE_REGION:
   SCCACHE_S3_KEY_PREFIX: ${SCCACHE_S3_KEY_PREFIX:-sccache}
+  SCCACHE_LOG:
+  SCCACHE_ERROR_LOG:
 
 x-vcpkg-build-secrets: &vcpkg-build-secrets
   - github_repository_owner

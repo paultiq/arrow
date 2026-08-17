@@ -73,7 +73,7 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: {{ '${{ secrets.GITHUB_TOKEN }}' }}
-        {{ macros.github_set_sccache_envvars()|indent(8) }}
+        {{ macros.github_set_sccache_envvars(sccache_error_log="/arrow/sccache.log")|indent(8) }}
         run: |
           if [ "{{ linux_wheel_kind }}" = "musllinux" ] && [ "{{ arch }}" = "arm64" ]; then
             # We can't use NuGet on musl arm systems because the official NuGet binary for arm doesn't exist.
@@ -84,6 +84,15 @@ jobs:
           archery docker run \
             -e SETUPTOOLS_SCM_PRETEND_VERSION={{ arrow.no_rc_version }} \
             python-wheel-{{ linux_wheel_kind }}-{{ linux_wheel_version }}
+
+      - name: Upload sccache log
+        if: {{ "${{ !cancelled() }}" }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: sccache-log-{{ python_abi_tag }}-{{ arch }}
+          path: arrow/sccache.log
+          if-no-files-found: ignore
 
       - uses: actions/upload-artifact@v4
         with:
