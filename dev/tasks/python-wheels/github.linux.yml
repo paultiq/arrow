@@ -21,6 +21,8 @@
 
 permissions:
   packages: write
+  # required for OIDC token used to assume AWS_ROLE_ARN for sccache
+  id-token: write
 
 jobs:
   build:
@@ -50,6 +52,13 @@ jobs:
       {{ macros.github_install_archery()|indent }}
       {{ macros.github_login_dockerhub()|indent }}
 
+      - name: Configure AWS credentials for sccache
+        if: {{ "${{ vars.AWS_ROLE_ARN != '' }}" }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: {{ '${{ vars.AWS_ROLE_ARN }}' }}
+          aws-region: {{ '${{ vars.SCCACHE_REGION }}' }}
+
       # Detect free-threaded Python builds
       - name: Prepare
         run: |
@@ -64,6 +73,7 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: {{ '${{ secrets.GITHUB_TOKEN }}' }}
+        {{ macros.github_set_sccache_envvars()|indent(8) }}
         run: |
           if [ "{{ linux_wheel_kind }}" = "musllinux" ] && [ "{{ arch }}" = "arm64" ]; then
             # We can't use NuGet on musl arm systems because the official NuGet binary for arm doesn't exist.
