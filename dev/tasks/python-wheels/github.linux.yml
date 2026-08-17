@@ -45,6 +45,7 @@ jobs:
       PYTHON: "{{ python_version }}"
       PYTHON_ABI_TAG: "{{ python_abi_tag }}"
       PYTHON_IMAGE_TAG: "{{ python_version }}"
+      AWS_ROLE_ARN: {{ '${{ secrets.AWS_ROLE_ARN }}' }}
 
     steps:
       {{ macros.github_checkout_arrow()|indent }}
@@ -53,11 +54,11 @@ jobs:
       {{ macros.github_login_dockerhub()|indent }}
 
       - name: Configure AWS credentials for sccache
-        if: {{ "${{ vars.AWS_ROLE_ARN != '' }}" }}
+        if: env.AWS_ROLE_ARN != ''
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: {{ '${{ vars.AWS_ROLE_ARN }}' }}
-          aws-region: {{ '${{ vars.SCCACHE_REGION }}' }}
+          role-to-assume: {{ '${{ secrets.AWS_ROLE_ARN }}' }}
+          aws-region: {{ '${{ secrets.SCCACHE_REGION }}' }}
 
       # Detect free-threaded Python builds
       - name: Prepare
