@@ -23,6 +23,8 @@ permissions:
   packages: write
   # required for OIDC token used to assume AWS_ROLE_ARN for sccache
   id-token: write
+  # for archery crossbow upload-artifacts
+  contents: write
 
 jobs:
   build:
@@ -92,7 +94,8 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: {{ '${{ secrets.GITHUB_TOKEN }}' }}
-        {{ macros.github_set_sccache_envvars(sccache_error_log="/arrow/sccache.log")|indent(8) }}
+        {{ macros.github_set_sccache_envvars(sccache_error_log="/arrow/sccache.log",
+                                             sccache_basedir="/tmp")|indent(8) }}
         run: |
           if [ "{{ linux_wheel_kind }}" = "musllinux" ] && [ "{{ arch }}" = "arm64" ]; then
             # We can't use NuGet on musl arm systems because the official NuGet binary for arm doesn't exist.
