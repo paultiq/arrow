@@ -60,7 +60,8 @@ jobs:
       {{ macros.github_free_space()|indent }}
       #}
       {{ macros.github_install_archery()|indent }}
-      {{ macros.github_login_dockerhub()|indent }}
+      {# FORK-ONLY: REPO points at GHCR to push images #}
+      {{ macros.github_login_ghcr()|indent }}
 
       # Detect free-threaded Python builds
       - name: Prepare
@@ -84,8 +85,17 @@ jobs:
           else
             export VCPKG_BINARY_SOURCES="clear;nuget,GitHub,readwrite"
           fi
-          archery docker run --build-only \
-            python-wheel-{{ linux_wheel_kind }}-{{ linux_wheel_version }}
+          # FORK-ONLY: reuse a prebuilt image if the exact tag exists, as
+          # github.windows.yml does. Only push when we actually built.
+          image=python-wheel-{{ linux_wheel_kind }}-{{ linux_wheel_version }}
+          if archery docker pull --no-ignore-pull-failures "${image}"; then
+            echo "Pulled a prebuilt image; skipping build."
+          else
+            echo "No prebuilt image; building and pushing."
+            archery docker run --build-only "${image}"
+            archery docker push "${image}" || \
+              echo "WARNING: push failed; the next run will rebuild."
+          fi
 
       - name: Show OIDC claims
         if: env.SCCACHE_OIDC_ROLE != ''
