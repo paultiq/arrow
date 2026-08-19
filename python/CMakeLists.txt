@@ -125,6 +125,30 @@ if(UNIX)
   endif()
 endif()
 
+find_program(SCCACHE_FOUND sccache)
+
+if(NOT SCCACHE_FOUND AND DEFINED ENV{SCCACHE_PATH})
+  # cmake has problems finding sccache from within mingw
+  message(STATUS "Did not find sccache, using envvar fallback.")
+  set(SCCACHE_FOUND $ENV{SCCACHE_PATH})
+endif()
+
+# Only use sccache if a storage backend is configured
+if(SCCACHE_FOUND
+   AND NOT CMAKE_C_COMPILER_LAUNCHER
+   AND NOT CMAKE_CXX_COMPILER_LAUNCHER
+   AND (DEFINED ENV{SCCACHE_AZURE_BLOB_CONTAINER}
+        OR DEFINED ENV{SCCACHE_BUCKET}
+        OR DEFINED ENV{SCCACHE_DIR}
+        OR DEFINED ENV{SCCACHE_GCS_BUCKET}
+        OR DEFINED ENV{SCCACHE_MEMCACHED}
+        OR DEFINED ENV{SCCACHE_REDIS}
+       ))
+  message(STATUS "Using sccache: ${SCCACHE_FOUND}")
+  set(CMAKE_C_COMPILER_LAUNCHER ${SCCACHE_FOUND})
+  set(CMAKE_CXX_COMPILER_LAUNCHER ${SCCACHE_FOUND})
+endif()
+
 find_program(CCACHE_FOUND ccache)
 if(CCACHE_FOUND
    AND NOT CMAKE_C_COMPILER_LAUNCHER

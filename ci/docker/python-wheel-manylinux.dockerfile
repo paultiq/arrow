@@ -121,3 +121,8 @@ ENTRYPOINT ["/bin/bash", "-i", "-c"]
 
 COPY python/requirements-wheel-build.txt /arrow/python/
 RUN pip install -r /arrow/python/requirements-wheel-build.txt
+
+# Install sccache
+ARG sccache=0.15.0
+COPY ci/scripts/install_sccache.sh arrow/ci/scripts/
+RUN /arrow/ci/scripts/install_sccache.sh unknown-linux-musl /usr/local/bin ${sccache}
