@@ -73,9 +73,15 @@ x-cpp: &cpp
 x-sccache: &sccache
   AWS_ACCESS_KEY_ID:
   AWS_SECRET_ACCESS_KEY:
+  # For credentials come from OIDC role
+  AWS_SESSION_TOKEN:
   SCCACHE_BUCKET:
   SCCACHE_REGION:
   SCCACHE_S3_KEY_PREFIX: ${SCCACHE_S3_KEY_PREFIX:-sccache}
+  # Rewrites absolute paths below this prefix
+  SCCACHE_BASEDIR:
+  SCCACHE_LOG:
+  SCCACHE_ERROR_LOG:
 
 x-vcpkg-build-secrets: &vcpkg-build-secrets
   - github_repository_owner
@@ -1189,7 +1195,7 @@ services:
         - ${REPO}:${ARCH_SHORT}-python-${PYTHON}-wheel-manylinux-2-28-vcpkg-${VCPKG}
       secrets: *vcpkg-build-secrets
     environment:
-      <<: [*common, *ccache]
+      <<: [*common, *ccache, *sccache]
     volumes:
       - .:/arrow:delegated
       - ${DOCKER_VOLUME_PREFIX}python-wheel-manylinux-2-28-ccache:/ccache:delegated
@@ -1412,6 +1418,8 @@ services:
       # cache_from:
       #   - mcr.microsoft.com/windows/servercore:ltsc2022
       #   - ${REPO}:python-${PYTHON}-wheel-windows-vs2022-vcpkg-${VCPKG}-${PYTHON_WHEEL_WINDOWS_IMAGE_REVISION}
+    environment:
+      <<: [*common, *sccache]
     volumes: *python-wheel-windows-vs2022-volumes
     command: arrow\\ci\\scripts\\python_wheel_windows_build.bat
 
@@ -1429,6 +1437,8 @@ services:
       # cache_from:
       #   - mcr.microsoft.com/windows/servercore:ltsc2022
       #   - ${REPO}:python-${PYTHON}-free-threaded-wheel-windows-vs2022-vcpkg-${VCPKG}-${PYTHON_WHEEL_WINDOWS_IMAGE_REVISION}
+    environment:
+      <<: [*common, *sccache]
     volumes: *python-wheel-windows-vs2022-volumes
     command: arrow\\ci\\scripts\\python_wheel_windows_build.bat
 

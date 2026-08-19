@@ -101,6 +101,12 @@ else
     : "${CMAKE_INTERPROCEDURAL_OPTIMIZATION:=ON}"
 fi
 
+if [ -n "${SCCACHE_BUCKET:-}" ] && command -v sccache &> /dev/null; then
+    : "${ARROW_USE_CCACHE:=OFF}"
+else
+    : "${ARROW_USE_CCACHE:=ON}"
+fi
+
 mkdir /tmp/arrow-build
 pushd /tmp/arrow-build
 
@@ -130,7 +136,8 @@ cmake \
     -DARROW_S3="${ARROW_S3}" \
     -DARROW_SUBSTRAIT="${ARROW_SUBSTRAIT}" \
     -DARROW_TENSORFLOW="${ARROW_TENSORFLOW}" \
-    -DARROW_USE_CCACHE=ON \
+    -DARROW_USE_CCACHE="${ARROW_USE_CCACHE}" \
+    -DCMAKE_VERBOSE_MAKEFILE="${CMAKE_VERBOSE_MAKEFILE:-OFF}" \
     -DARROW_USE_MOLD="${ARROW_USE_MOLD}" \
     -DARROW_WITH_BROTLI="${ARROW_WITH_BROTLI}" \
     -DARROW_WITH_BZ2="${ARROW_WITH_BZ2}" \
@@ -179,6 +186,7 @@ export CMAKE_PREFIX_PATH=/tmp/arrow-dist
 
 pushd /arrow/python
 python -m build --sdist --wheel . --no-isolation \
+    -C build-dir=/tmp/pyarrow-build \
     -C build.verbose=true \
     -C cmake.build-type="${CMAKE_BUILD_TYPE:-Debug}" \
     -C cmake.args="-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=${CMAKE_INTERPROCEDURAL_OPTIMIZATION}"
@@ -206,3 +214,8 @@ rm -rf dist/temp-fix-wheel
 echo "=== (${PYTHON_VERSION}) Tag the wheel with ${LINUX_WHEEL_KIND}${LINUX_WHEEL_VERSION} ==="
 auditwheel repair dist/pyarrow-*.whl -w repaired_wheels
 popd
+
+if command -v sccache &> /dev/null; then
+  echo "=== sccache stats after the build ==="
+  sccache --show-stats
+fi

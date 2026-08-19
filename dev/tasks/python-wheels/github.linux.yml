@@ -21,6 +21,10 @@
 
 permissions:
   packages: write
+  # required for OIDC token used to assume AWS_ROLE_ARN for sccache
+  id-token: write
+  # for archery crossbow upload-artifacts
+  contents: write
 
 jobs:
   build:
@@ -48,10 +52,13 @@ jobs:
       {% else %}
       PYTHON_IMAGE_TAG: "{{ python_version }}"
       {% endif %}
+      SCCACHE_OIDC_ROLE: {{ '${{ secrets.AWS_ROLE_ARN }}' }}
 
     steps:
       {{ macros.github_checkout_arrow()|indent }}
+      {# TEMPORARY: disabled to speed up sccache testing, restore before PR
       {{ macros.github_free_space()|indent }}
+      #}
       {{ macros.github_install_archery()|indent }}
       {{ macros.github_login_dockerhub()|indent }}
 
@@ -65,7 +72,8 @@ jobs:
           fi
           echo "TEST_IMAGE_PREFIX=${test_image_prefix}" >> ${GITHUB_ENV}
 
-      - name: Build wheel
+      # Do the build image *before* sccache, to avoid long S3 credentials
+      - name: Build image
         shell: bash
         env:
           GITHUB_TOKEN: {{ '${{ secrets.GITHUB_TOKEN }}' }}
@@ -76,9 +84,52 @@ jobs:
           else
             export VCPKG_BINARY_SOURCES="clear;nuget,GitHub,readwrite"
           fi
-          archery docker run \
-            -e SETUPTOOLS_SCM_PRETEND_VERSION={{ arrow.no_rc_version }} \
+          archery docker run --build-only \
             python-wheel-{{ linux_wheel_kind }}-{{ linux_wheel_version }}
+
+      - name: Show OIDC claims
+        if: env.SCCACHE_OIDC_ROLE != ''
+        shell: bash
+        run: |
+          TOKEN=$(curl -sS \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          python3 - "$TOKEN" <<'PY'
+          import base64, json, sys
+          p = sys.argv[1].split('.')[1]
+          p += '=' * (-len(p) % 4)
+          c = json.loads(base64.urlsafe_b64decode(p))
+          keys = ('sub', 'aud', 'iss', 'repository', 'repository_owner', 'ref')
+          print(json.dumps(dict((k, c.get(k)) for k in keys), indent=2))
+          PY
+
+      - name: Configure AWS credentials for sccache
+        if: env.SCCACHE_OIDC_ROLE != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: {{ '${{ secrets.SCCACHE_REGION }}' }}
+          role-to-assume: {{ '${{ secrets.AWS_ROLE_ARN }}' }}
+
+      - name: Build wheel
+        shell: bash
+        env:
+          GITHUB_TOKEN: {{ '${{ secrets.GITHUB_TOKEN }}' }}
+        {{ macros.github_set_sccache_envvars(sccache_error_log="/arrow/sccache.log",
+                                             sccache_basedir="/tmp")|indent(8) }}
+        run: |
+          archery docker run --no-pull --no-build \
+            -e SETUPTOOLS_SCM_PRETEND_VERSION={{ arrow.no_rc_version }} \
+            -e CMAKE_VERBOSE_MAKEFILE={{ '${{ vars.CMAKE_VERBOSE_MAKEFILE || \'OFF\' }}' }} \
+            python-wheel-{{ linux_wheel_kind }}-{{ linux_wheel_version }}
+
+      - name: Upload sccache log
+        if: {{ "${{ !cancelled() }}" }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: sccache-log-{{ python_abi_tag }}-{{ arch }}
+          path: arrow/sccache.log
+          if-no-files-found: ignore
 
       - uses: actions/upload-artifact@v4
         with:
