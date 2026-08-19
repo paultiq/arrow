@@ -57,6 +57,31 @@ jobs:
       {{ macros.github_install_archery()|indent }}
       {{ macros.github_login_dockerhub()|indent }}
 
+      # Detect free-threaded Python builds
+      - name: Prepare
+        run: |
+          if [[ "${PYTHON_ABI_TAG}" == *t ]]; then
+            test_image_prefix=python-free-threaded
+          else
+            test_image_prefix=python
+          fi
+          echo "TEST_IMAGE_PREFIX=${test_image_prefix}" >> ${GITHUB_ENV}
+
+      # Do the build image *before* sccache, to avoid long S3 credentials
+      - name: Build image
+        shell: bash
+        env:
+          GITHUB_TOKEN: {{ '${{ secrets.GITHUB_TOKEN }}' }}
+        run: |
+          if [ "{{ linux_wheel_kind }}" = "musllinux" ] && [ "{{ arch }}" = "arm64" ]; then
+            # We can't use NuGet on musl arm systems because the official NuGet binary for arm doesn't exist.
+            :
+          else
+            export VCPKG_BINARY_SOURCES="clear;nuget,GitHub,readwrite"
+          fi
+          archery docker run --build-only \
+            python-wheel-{{ linux_wheel_kind }}-{{ linux_wheel_version }}
+
       - name: Show OIDC claims
         if: env.SCCACHE_OIDC_ROLE != ''
         shell: bash
@@ -80,16 +105,6 @@ jobs:
           aws-region: {{ '${{ secrets.SCCACHE_REGION }}' }}
           role-to-assume: {{ '${{ secrets.AWS_ROLE_ARN }}' }}
 
-      # Detect free-threaded Python builds
-      - name: Prepare
-        run: |
-          if [[ "${PYTHON_ABI_TAG}" == *t ]]; then
-            test_image_prefix=python-free-threaded
-          else
-            test_image_prefix=python
-          fi
-          echo "TEST_IMAGE_PREFIX=${test_image_prefix}" >> ${GITHUB_ENV}
-
       - name: Build wheel
         shell: bash
         env:
@@ -97,13 +112,7 @@ jobs:
         {{ macros.github_set_sccache_envvars(sccache_error_log="/arrow/sccache.log",
                                              sccache_basedir="/tmp")|indent(8) }}
         run: |
-          if [ "{{ linux_wheel_kind }}" = "musllinux" ] && [ "{{ arch }}" = "arm64" ]; then
-            # We can't use NuGet on musl arm systems because the official NuGet binary for arm doesn't exist.
-            :
-          else
-            export VCPKG_BINARY_SOURCES="clear;nuget,GitHub,readwrite"
-          fi
-          archery docker run \
+          archery docker run --no-pull --no-build \
             -e SETUPTOOLS_SCM_PRETEND_VERSION={{ arrow.no_rc_version }} \
             -e CMAKE_VERBOSE_MAKEFILE={{ '${{ vars.CMAKE_VERBOSE_MAKEFILE || \'OFF\' }}' }} \
             python-wheel-{{ linux_wheel_kind }}-{{ linux_wheel_version }}
