@@ -299,7 +299,7 @@ env:
             "SCCACHE_BUCKET": '${{ secrets.SCCACHE_BUCKET }}',
             "SCCACHE_REGION": '${{ secrets.SCCACHE_REGION }}',
             "SCCACHE_S3_KEY_PREFIX": sccache_key_prefix,
-            "SCCACHE_LOG": '${{ vars.SCCACHE_LOG }}',
+            "SCCACHE_LOG": '${{ vars.SCCACHE_LOG || \'sccache=debug\' }}',
             "SCCACHE_ERROR_LOG": sccache_error_log,
             "SCCACHE_BASEDIR": sccache_basedir
           }

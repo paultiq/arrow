@@ -45,7 +45,29 @@ function check_arrow_visibility {
     fi
 }
 
-echo "=== (${PYTHON_VERSION}) Clear output directories and leftovers ==="
+# Print a phase banner
+_phase_name=""
+_phase_start=${SECONDS}
+
+function phase {
+    if [ -n "${_phase_name}" ]; then
+        echo "=== ${_phase_name}: $((SECONDS - _phase_start))s ==="
+    fi
+    _phase_name="$1"
+    _phase_start=${SECONDS}
+    echo "=== (${PYTHON_VERSION}) ${_phase_name} ==="
+}
+
+# Close the final phase, whether the script succeeds or fails.
+function phase_end {
+    if [ -n "${_phase_name}" ]; then
+        echo "=== ${_phase_name}: $((SECONDS - _phase_start))s ==="
+        _phase_name=""
+    fi
+}
+trap phase_end EXIT
+
+phase "Clear output directories and leftovers"
 # Clear output directories and leftovers
 rm -rf /tmp/arrow-build
 rm -rf /arrow/python/dist
@@ -54,7 +76,7 @@ rm -rf /arrow/python/repaired_wheels
 rm -rf /arrow/python/pyarrow/*.so
 rm -rf /arrow/python/pyarrow/*.so.*
 
-echo "=== (${PYTHON_VERSION}) Building Arrow C++ libraries ==="
+phase "Building Arrow C++ libraries"
 : "${ARROW_ACERO:=ON}"
 : "${ARROW_AZURE:=ON}"
 : "${ARROW_DATASET:=ON}"
@@ -164,7 +186,7 @@ popd
 # Check that we don't expose any unwanted symbols
 check_arrow_visibility
 
-echo "=== (${PYTHON_VERSION}) Building wheel ==="
+phase "Building wheel"
 export PYARROW_BUNDLE_ARROW_CPP=ON
 # TODO(GH-32609): Re-enable when pyarrow-stubs are shipped in wheels again.
 # export PYARROW_REQUIRE_STUB_DOCSTRINGS=ON
@@ -191,7 +213,7 @@ python -m build --sdist --wheel . --no-isolation \
     -C cmake.build-type="${CMAKE_BUILD_TYPE:-Debug}" \
     -C cmake.args="-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=${CMAKE_INTERPROCEDURAL_OPTIMIZATION}"
 
-echo "=== Strip symbols from wheel ==="
+phase "Strip symbols from wheel"
 mkdir -p dist/temp-fix-wheel
 mv dist/pyarrow-*.whl dist/temp-fix-wheel
 
@@ -211,7 +233,7 @@ popd
 
 rm -rf dist/temp-fix-wheel
 
-echo "=== (${PYTHON_VERSION}) Tag the wheel with ${LINUX_WHEEL_KIND}${LINUX_WHEEL_VERSION} ==="
+phase "Tag the wheel with ${LINUX_WHEEL_KIND}${LINUX_WHEEL_VERSION}"
 auditwheel repair dist/pyarrow-*.whl -w repaired_wheels
 popd
 
